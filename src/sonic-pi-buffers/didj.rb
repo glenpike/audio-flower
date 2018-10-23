@@ -4,18 +4,18 @@ min=30
 max=120
 c=min
 dir=true
-with_fx :gverb, release: 1 do
+with_fx :gverb, release: 1, amp: 0.8 do
   ##| with_fx :flanger, phase: 4, delay: 3, depth: 10, mix: 0.8 do
-  notes = (scale :Bb1, :major_pentatonic).shuffle
+  notes = (scale :Bb4, :major_pentatonic).shuffle
   live_loop :bell do
     use_synth :mod_tri
-    ##| play notes.tick, attack: 1, sustain: 1, sustain_level: 0.7,
-    ##|   release: 1
+    play notes.tick, attack: 1, sustain: 1, sustain_level: 0.7,
+      release: 1, amp: 0.3
     sleep 0.5
   end
   live_loop :noise do
     use_synth :mod_pulse
-    play :Bb1, cutoff: c, mod_range: 1, mod_wave: 3
+    play :Bb1, cutoff: c, mod_range: 1, mod_wave: 3, amp: 0.6
     if dir
       c += 1
       if c==max
