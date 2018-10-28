@@ -1,0 +1,68 @@
+# Welcome to Sonic Pi v3.0.1
+
+bpm_multiplier=4
+use_bpm 30 * bpm_multiplier
+
+in_thread(name: :cues) do
+  loop do
+    ##| cue :beat_sync
+    sleep 1
+  end
+end
+
+load_samples "ambi_"
+define :ambient do |index|
+  sample "ambi_", index, rate: 0.5, attack: (10), amp:0.75
+  sleep (sample_duration "ambi_", index)
+end
+
+define :scanner_synth do
+  use_synth :tb303
+  play :f1, cutoff: 100, release: 7, attack: 1, cutoff_attack: 32, cutoff_release: 4
+  sleep 32
+end
+
+c = 30
+inc = true
+
+define :squelch_synth do
+  use_synth :tb303
+  64.times do
+    n = (ring :f1, :f2, :f3).tick
+    play n, release: 0.125, cutoff_attack: 0.1, cutoff: c, res: 0.8, wave: 1
+    if inc
+      c += 1
+      if c == 120
+        inc = false
+      end
+    else
+      c -= 1
+      if c == 30
+        inc = true
+      end
+    end
+    sleep 0.25
+  end
+end
+
+with_fx :echo, phase: 0.25, decay: 2, mix: 0.2 do
+  live_loop :positive_samples do
+    use_real_time
+    file = sync "/osc/trigger/sample"
+    ##| sync :beat_sync
+    sample file[0]
+  end
+  live_loop :ambient_loop do
+    index = sync "/osc/trigger/ambient"
+    ambient index
+  end
+  live_loop :synths do
+    synth = sync "/osc/trigger/synth"
+    if synth == 'squelch'
+      squelch_synth
+    end
+    if synth = 'space_scanner'
+      scanner_synth
+    end
+  end
+end
