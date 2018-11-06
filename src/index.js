@@ -1,20 +1,7 @@
-const osc = require('osc');
+// const osc = require('osc');
+const oscServer = require('./osc-adapter');
 
 const audioSamples = require('./audio-samples');
-
-const udpPort = new osc.UDPPort({
-    // This is the port we're listening on.
-    localAddress: '127.0.0.1',
-    localPort: 57121,
-
-    // This is where sonic-pi is listening for OSC messages.
-    remoteAddress: '127.0.0.1',
-    remotePort: 4559,
-    metadata: true
-});
-
-// Open the socket.
-udpPort.open();
 
 const sendSample = (sampleFile) => {
     const msg = {
@@ -28,7 +15,7 @@ const sendSample = (sampleFile) => {
     };
 
     console.log('/trigger/sample', msg.args);
-    udpPort.send(msg);
+    oscServer.sendOSCMessage(msg);
 };
 
 const sendAmbient = (choice) => {
@@ -43,7 +30,7 @@ const sendAmbient = (choice) => {
     };
 
     console.log('/trigger/ambient', msg.args);
-    udpPort.send(msg);
+    oscServer.sendOSCMessage(msg);
 };
 
 const sendSynth = (name) => {
@@ -56,7 +43,7 @@ const sendSynth = (name) => {
     };
 
     console.log(msg.address, name);
-    udpPort.send(msg);
+    oscServer.sendOSCMessage(msg);
 };
 
 const sendDrums= (choice) => {
@@ -71,7 +58,7 @@ const sendDrums= (choice) => {
     };
 
     console.log('/trigger/drums');
-    udpPort.send(msg);
+    oscServer.sendOSCMessage(msg);
 };
 
 
@@ -94,7 +81,7 @@ const sendCode = (code) => {
     };
 
     console.log(`/run-code '${code}'`);
-    udpPort.send(msg);
+    oscServer.sendOSCMessage(msg);
 }
 
 const gpio = require('rpi-gpio');
@@ -171,27 +158,30 @@ const run = () => {
 
 }
 
-const oscServer = require('./osc-adapter');
+
 
 const sampleDir = '../samples/'
 // Need to read directory recursively and build up
 // 'set' of samples so we can access 'HITZ' & 'QUOTES' separately.
 const main = async () => {
     try {
+        oscServer.addOSCListener((msg) => console.log('msg ', msg));
+
         const sampleFiles = await audioSamples.loadSamples(sampleDir);
         // console.log('sampleDir, ', sampleFiles);
         // const domSamples = audioSamples.getSampleFilesForPerson('DOM');
         // console.log('domSamples, ', domSamples);
         const hitzSamples = audioSamples.getHitzForPerson('DOM');
         // console.log('hitzSamples, ', hitzSamples);
-
         sendSample(hitzSamples[0]);
+
         await setupPin(IN_1);
         await setupPin(IN_2);
         await setupPin(IN_3);
         // Start sonic-pi and wait for 'ready'?
         await run();
     } catch(err) {
+        oscServer.shutdownOSC();
         console.log(err);
         process.exit(-1);
     }
