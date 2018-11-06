@@ -1,63 +1,6 @@
 const osc = require('osc');
-const fs = require('fs');
-const path = require('path');
 
-// Serial Port - from Arduino
-const serialDebug = true;
-const portName = '/dev/ttyACM0'
-const SerialPort = require('serialport');
-const port = new SerialPort(portName, {
-    baudRate: 9600,
-  },
-  function (err) {
-  if (err) {
-    return console.log('Error: ', err.message);
-  }
-});
-
-// Need to smooth data over time, as we are triggering a lot.
-// two triggerThresholds - trigger & reset?
-const triggerThreshold = 800;
-const resetThreshold = 100;
-let triggered = false;
-const handleData = ({ time, value }) => {
-  const sensorValue = Number.parseInt(value);
-  if (Number.isNaN(sensorValue)) {
-    console.log('handleData - invalid sensor value: ', value);
-    return;
-  }
-  if (serialDebug) {
-    console.log(`sensorValue: ${sensorValue} (${value})`);
-  }
-  /*if (sensorValue > triggerThreshold && !triggered) {
-    console.log('triggering...');
-    // triggerAudio();
-    triggered = true;
-  } else if(sensorValue < resetThreshold && triggered) {
-    console.log('resetting trigger...');
-    triggered = false;
-  }*/
-};
-
-let buffer = '';
-port.on('readable', function () {
-  buffer += port.read().toString();
-  const messages = buffer.split('\n');
-  if (messages.length > 1) {
-    // save the bit for the buffer.
-    buffer = messages.pop();
-    messages.forEach((m) => {
-      const regex = /([0-9]+)\t([0-9]+)\t([0-9]+)\t([0-9]+)/;
-      const match = m.match(regex);
-      // console.log('match ', match);
-      if (match) {
-        const [, time, value] = match;
-        handleData({ time, value});
-      }
-    });
-  }
-});
-
+const audioSamples = require('./audio-samples');
 
 const udpPort = new osc.UDPPort({
     // This is the port we're listening on.
@@ -161,10 +104,6 @@ gpio.setMode(gpio.MODE_BCM);
 const IN_1 = 4;
 const IN_2 = 5;
 const IN_3 = 6;
-const IN_4 = 3;
-const IN_5 = 2;
-const IN_6 = 23;
-const IN_7 = 24;
 
 
 const readInput = async (input) => {
@@ -190,67 +129,64 @@ const setupPin = async (pin) => {
 };
 
 const AMBIENT_SAMPLES = 10;
+
 const run = () => {
     console.log('running');
-    let lastIn2 = true;
-    let lastIn3 = true;
-    let lastIn5 = true;
-    let lastIn6 = true;
-    let lastIn7 = true;
-    
-    sendCode("loop do ; in_thread do ; puts 'hello' ; sleep 3 ; end ; sleep 0.025 ; end");
+    // create array of last changes to measure avg time between inputs
+    // current mode.
+    // current key.
+    // current 'timeslot'
+    // current sample set
+
     setInterval(async () => {
-        let value = await readInput(IN_1);
-        if(!value) {
-            const choice = Math.floor(Math.random() * sampleFiles.length);
-            sendSample(sampleFiles[choice]);
-        }
-        value = await readInput(IN_2);
-        if(!value && lastIn2 !== value) {
-            sendSynth('squelch');
-        }
-        lastIn2 = value;
-        value = await readInput(IN_3);
-        if(!value && lastIn3 !== value) {
-            sendSynth('dark_ambient');
-        }
-        lastIn3 = value;
-        value = await readInput(IN_4);
-        if(!value) {
-            const choice = Math.ceil(Math.random() * AMBIENT_SAMPLES);
-            sendAmbient(choice);
-        }
-        value = await readInput(IN_5);
-        if(!value && lastIn5 !== value) {
-            sendSynth('space_scanner');
-        }
-        lastIn5 = value;
-        value = await readInput(IN_6);
-        if(!value && lastIn6 !== value) {
-            sendSynth('trance');
-        }
-        lastIn7 = value;
-        value = await readInput(IN_7);
-        if(!value && lastIn7 !== value) {
-            sendSynth('slo_bells');
-        }
-        lastIn7 = value;
-        
+        // Read inputs - check for 'changes'
+        // Also check which input, e.g. 1 + 2 + 3 affects mode!
+
+        // if changed, store time since last change.
+
+        // Measure avg time between inputs & which input - turn into 'mode'
+        // If mode is different
+          // set current mode and tell system if needed.
+          // current mode may affect sample slots?
+
+        // Get time of day / since start, divide into timeslot
+        // If timeslot has changed
+            // set the current key / and or person (different timeslots)
+
+        // check for 'synth finished' new osc message from sonic-pi
+        // ditto for fx,
+        // ditto for long samples
+        // record time since last long sample.
+
+        // if input changed
+            // get next sample and play
+            // if synth finished && mode allows synth
+                // trigger synth
+            // else if fx finished && mode allows fx
+                // trigger fx.
+
+        // if samples empty
+            // create sample set from shuffled lib of current person, etc.
+
     }, 100);
 
 }
 const sampleDir = '../samples/'
-const sampleFiles = fs.readdirSync(sampleDir);
-console.log('sampleDir, ', sampleFiles);
+// Need to read directory recursively and build up
+// 'set' of samples so we can access 'HITZ' & 'QUOTES' separately.
 const main = async () => {
     try {
+        const sampleFiles = await audioSamples.loadSamples(sampleDir);
+        // console.log('sampleDir, ', sampleFiles);
+        // const domSamples = audioSamples.getSampleFilesForPerson('DOM');
+        // console.log('domSamples, ', domSamples);
+        // const hitzSamples = audioSamples.getHitzForPerson('DOM');
+        // console.log('hitzSamples, ', hitzSamples);
+
         await setupPin(IN_1);
         await setupPin(IN_2);
         await setupPin(IN_3);
-        await setupPin(IN_4);
-        await setupPin(IN_5);
-        await setupPin(IN_6);
-        await setupPin(IN_7);
+        // Start sonic-pi and wait for 'ready'?
         await run();
     } catch(err) {
         console.log(err);

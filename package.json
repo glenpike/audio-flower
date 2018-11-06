@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "globby": "^8.0.1",
     "osc": "^2.2.4",
     "rpi-gpio": "^1.0.0",
     "serialport": "^7.0.2"
