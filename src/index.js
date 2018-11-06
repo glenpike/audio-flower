@@ -17,13 +17,12 @@ const udpPort = new osc.UDPPort({
 udpPort.open();
 
 const sendSample = (sampleFile) => {
-    const fullPath = path.resolve(sampleDir, sampleFile);
     const msg = {
         address: '/trigger/sample',
         args: [
             {
                 type: 's',
-                value: fullPath,
+                value: sampleFile,
             },
         ],
     };
@@ -171,6 +170,9 @@ const run = () => {
     }, 100);
 
 }
+
+const oscServer = require('./osc-adapter');
+
 const sampleDir = '../samples/'
 // Need to read directory recursively and build up
 // 'set' of samples so we can access 'HITZ' & 'QUOTES' separately.
@@ -180,9 +182,10 @@ const main = async () => {
         // console.log('sampleDir, ', sampleFiles);
         // const domSamples = audioSamples.getSampleFilesForPerson('DOM');
         // console.log('domSamples, ', domSamples);
-        // const hitzSamples = audioSamples.getHitzForPerson('DOM');
+        const hitzSamples = audioSamples.getHitzForPerson('DOM');
         // console.log('hitzSamples, ', hitzSamples);
 
+        sendSample(hitzSamples[0]);
         await setupPin(IN_1);
         await setupPin(IN_2);
         await setupPin(IN_3);
