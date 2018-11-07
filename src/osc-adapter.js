@@ -38,6 +38,7 @@ const client = dgram.createSocket('udp4');
 
 const sendOSCMessage = (msg) => {
   const buf = oscMin.toBuffer(msg);
+  // console.log('sending OSC msg ', msg);
   client.send(buf, 0, buf.length, remotePort, remoteAddress, (error) => {
     if (error) {
       console.warn('error sending OSC msg ', error);

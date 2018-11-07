@@ -29,9 +29,10 @@ const getSampleFilesForPerson = person =>
   allSampleFiles[person.toUpperCase()] || {};
 
 const getSampleFilesForType = type =>
-  Object.keys(allSampleFiles).reduce(set, person => {
+  Object.keys(allSampleFiles).reduce((acc, person) => {
     const samples = allSampleFiles[person][type.toUpperCase()] || [];
-    set = set.concat(samples);
+    acc = acc.concat(samples);
+    return acc;
   }, []);
 
 

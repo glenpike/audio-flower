@@ -1,3 +1,5 @@
+use_osc "localhost", 57122
+
 # Fix your keys / chords, or separate into different people?
 
 bpm_multiplier=4
@@ -118,8 +120,9 @@ end
 with_fx :echo, phase: 0.25, decay: 2, mix: 0.2 do
   live_loop :positive_samples do
     use_real_time
-    file = sync "/osc/trigger/sample"
+    file = sync "/osc/trigger/sample/hitz"
     sample file[0]
+    osc "/sample-finished/hitz"
   end
   live_loop :ambient_loop do
     index = sync "/osc/trigger/ambient"
@@ -128,6 +131,20 @@ with_fx :echo, phase: 0.25, decay: 2, mix: 0.2 do
 end
 
 with_fx :reverb, room: 1 do
+  live_loop :quote_samples do
+    use_real_time
+    file = sync "/osc/trigger/sample/quotes"
+    sample file[0]
+    sleep sample_duration(file[0])
+    osc "/sample-finished/quotes"
+  end
+  live_loop :long_samples do
+    use_real_time
+    file = sync "/osc/trigger/sample/long"
+    sample file[0]
+    sleep sample_duration(file[0])
+    osc "/sample-finished/long"
+  end
   live_loop :synths do
     synth_bg = sync "/osc/trigger/synth"
     space_scanner if synth_bg[0] == "space_scanner"
@@ -135,5 +152,6 @@ with_fx :reverb, room: 1 do
     sweep 'trance' if synth_bg[0] == 'trance'
     dark_ambient if synth_bg[0] == "dark_ambient"
     slo_bells if synth_bg[0] == 'slo_bells'
+    osc "/synth-finished"
   end
 end
