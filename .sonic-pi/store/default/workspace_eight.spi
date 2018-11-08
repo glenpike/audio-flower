@@ -1,26 +1,23 @@
-use_synth :tb303
-with_fx :reverb, room: 1 do
-  live_loop :space_scanner do
-    play :f1, cutoff: 100, release: 7, attack: 1, cutoff_attack: 8, cutoff_release: 4
-    sleep 8
+# Steve Reich's Piano Phase
+
+piano_phase_notes = (ring :E4, :Fs4, :B4, :Cs5, :D5, :Fs4, :E4, :Cs5, :B4, :Fs4, :D5, :Cs5)
+
+define :piano_phase do |speed|
+  use_synth :piano
+  48.times do
+    play piano_phase_notes.tick, sustain_level: 0.9, release: 1, amp: 0.7
+    sleep speed
   end
-  c = 30
-  inc = true
-  live_loop :squelch do
-    n = (ring :f1, :f2, :f3).tick
-    play n, release: 0.125, cutoff_attack: 0.1, cutoff: c, res: 0.8, wave: 1
-    if inc
-      c += 1
-      if c == 120
-        inc = false
-      end
-    else
-      c -= 1
-      if c == 30
-        inc = true
-      end
-    end
-    sleep 0.125
-  end
-  
 end
+
+
+
+with_fx :reverb, room: 1 do
+  live_loop :slow_piano do
+    piano_phase 0.3
+  end
+  live_loop :faster_piano do
+    piano_phase 0.295
+  end
+end
+

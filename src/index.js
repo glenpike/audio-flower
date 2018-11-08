@@ -45,7 +45,17 @@ const sendSynth = (name) => {
     oscServer.sendOSCMessage(msg);
 };
 
-const sendDrums= (choice) => {
+const sendSteveReich = (name) => {
+    const msg = {
+        address: '/trigger/steve-reich',
+        args: [],
+    };
+
+    console.log(msg.address, name);
+    oscServer.sendOSCMessage(msg);
+};
+
+const sendDrums = (choice) => {
     const msg = {
         address: '/trigger/drums',
         args: [
@@ -134,9 +144,12 @@ const MAX_INPUT_TIMES = 10;
 const LOOP_INTERVAL = 100;
 
 // TODO - fix the times...
-const TIME_TO_IDLE = 5 * 1000;
-const IDLE_TIME_BEFORE_SAMPLE = 5 * 1000;
-const TIME_BETWEEN_LONG_SAMPLES = 5 * 1000;
+const TIME_TO_IDLE = 20 * 1000;
+const IDLE_TIME_BEFORE_SAMPLE = 20 * 1000;
+const TIME_BETWEEN_LONG_SAMPLES = 20 * 1000;
+const TIME_BETWEEN_QUOTE_SAMPLES = 5 * 1000;
+const TIME_BETWEEN_SYNTHS = 5 * 1000;
+const TIME_BETWEEN_DRUMS = 5 * 1000;
 
 const MODE_IDLE = 'idle';
 const MODE_HITZ = 'hitz';
@@ -152,6 +165,11 @@ const run = (sampleFiles) => {
     const startTime = lastTime;
     let currTime;
     let idleSamplePlaying = false;
+    let quoteSamplePlaying = false;
+    let synthPlaying = false;
+    let drumsPlaying = false;
+    let ambientPlaying = false;
+    let steveReichPlaying = false;
 
     // create array of last changes to measure avg time between inputs
     const overallInputActivity = [startTime];
@@ -167,59 +185,118 @@ const run = (sampleFiles) => {
     let lastMode = currentMode;
     let timeInMode = 0;
 
-    // current key.
-    // current 'timeslot'
+    // current key?
     const allHitzSamples = audioSamples.getSampleFilesForType('HITZ');
+    const allQuoteSamples = audioSamples.getSampleFilesForType('QUOTES');
+    
     const people = Object.keys(sampleFiles);
-    // current person
-    let currentPerson = 0;
-    let personSamples = audioSamples.getSampleFilesForPerson(people[currentPerson]);
-    let currentLongSamples = audioSamples.getLongSamplesForPerson('DOM'); // FIXME - change to current person
-
+    let currentPerson = people.indexOf('DOM');
+    console.log('current person ', people[currentPerson]);
+    let personLongSamples = audioSamples.getLongSamplesForPerson(people[currentPerson]);
+    let currentLongSamples = personLongSamples.slice(0);
+    let currentQuoteSamples = allQuoteSamples.slice(0);
+    
+    const synths = ['space_scanner', 'squelch', 'trance',
+            'dark_ambient', 'slo_bells', 'tri_me', 'strings'];
+    let currentSynths = synths.slice(0);
+    
     const setMode = (mode) => {
         console.log(`changing mode to ${mode}`);
         currentMode = mode;
         timeInMode = 0;
-    }
+    };
 
     const playNextHitzSample = () => {
         const choice = Math.floor(Math.random() * allHitzSamples.length);
         const sample = allHitzSamples[choice]
         sendSample(sample);
-    }
-
+    };
+    
     const playNextLongSample = () => {
-        return;
         const choice = Math.floor(Math.random() * currentLongSamples.length);
         const sample = currentLongSamples.splice(choice, 1);
         if (sample && sample[0]) {
             console.log('playing long sample ', sample[0]);
             sendSample(sample[0], 'long');
             idleSamplePlaying = true;
+            const rand = 5;//Math.random() * 5;
+            if (people[currentPerson] === 'DOM' && !steveReichPlaying && rand >= 4.0) {
+                sendSteveReich();
+            }
             // reset when we run out.
             if (!currentLongSamples.length) {
-                currentLongSamples = audioSamples.getLongSamplesForPerson(people[currentPerson]);
+                currentPerson++;
+                if (currentPerson === people.length) {
+                    currentPerson = 0;
+                }
+                currentLongSamples = personLongSamples.slice(0);
             }
         }
-    }
+    };
+
+    const playNextQuoteSample = () => {
+        const choice = Math.floor(Math.random() * currentQuoteSamples.length);
+        const sample = currentQuoteSamples.splice(choice, 1);
+        if (sample && sample[0]) {
+            console.log('playing quote sample ', sample[0]);
+            sendSample(sample[0], 'quote');
+            quoteSamplePlaying = true;
+            // reset when we run out.
+            if (!currentQuoteSamples.length) {
+                currentPerson++;
+                currentQuoteSamples = allQuoteSamples.slice(0);
+            }
+        }
+    };
+    
+    const playNextSynth = () => {
+        const choice = Math.floor(Math.random() * currentSynths.length);
+        const synth = currentSynths.splice(choice, 1);
+        sendSynth(synth[0]);
+        synthPlaying = true;
+        if (!currentSynths.length) {
+            currentSynths = synths.slice(0);
+        }
+    };
 
     const oscMessageHandler = (msg) => {
         const { address } = msg;
         switch (address) {
+            case '/sample-finished/hitz':
+                break;
+            case '/sample-finished/quote':
+                setTimeout(() => { quoteSamplePlaying = false }, TIME_BETWEEN_QUOTE_SAMPLES);
+                break;
             case '/sample-finished/long':
                 setTimeout(() => { idleSamplePlaying = false }, TIME_BETWEEN_LONG_SAMPLES);
                 break;
+            case '/synth-finished':
+                setTimeout(() => { synthPlaying = false }, TIME_BETWEEN_SYNTHS);
+                break;
+            case '/drums-finished':
+                setTimeout(() => { drumsPlaying = false }, TIME_BETWEEN_DRUMS);
+                break;
+            case '/ambient-finished':
+                setTimeout(() => { ambientPlaying = false }, TIME_BETWEEN_SYNTHS);
+                break;
+            case '/steve-reich-finished':
+                setTimeout(() => { steveReichPlaying = false }, TIME_BETWEEN_LONG_SAMPLES);
+                break;
+            default:
+                console.log('oscMessageHandler ', msg);
+                break;
         }
-        // console.log('oscMessageHandler ', msg);
     };
     oscServer.addOSCListener(oscMessageHandler);
-
+    // sendDrums(1);
+    
     setInterval(async () => {
         currTime = new Date().getTime();
         // Read inputs - for changes
         const triggeredInputs = await Promise.all(inputChecks.map(triggerCheck => triggerCheck()));
 
         let nothingTriggered = true;
+        let triggerCount = 0;
         triggeredInputs.forEach((isTriggered, idx) => {
             if (isTriggered) {
                 const inputTimes = inputActivity[idx];
@@ -238,8 +315,14 @@ const run = (sampleFiles) => {
                     }
                 }
                 // console.log('inputTimes is now ', inputActivity[idx]);
-                playNextHitzSample();
+                const quotes = Math.floor(Math.random() * 5);
+                if (quotes >= 4 && !quoteSamplePlaying) {
+                    playNextQuoteSample();
+                } else {
+                    playNextHitzSample(); // Should we block on quoteSamplePlaying?
+                }
                 nothingTriggered = false;
+                triggerCount++;
             }
         });
 
@@ -253,8 +336,6 @@ const run = (sampleFiles) => {
                 playNextLongSample();
             }
         } else if (!nothingTriggered) {
-            // Measure avg time between inputs & which input - turn into 'mode'
-            // find the difference between each array value -  we should figure this earlier?
             const sumActivity = overallInputActivity.reduce((acc, curr, idx, src) => {
                 let delta = 0;
                 if (idx > 0) {
@@ -264,15 +345,20 @@ const run = (sampleFiles) => {
             }, 0);
             avgActivity = 500.0 / (sumActivity / overallInputActivity.length);
             // console.log('overallInputActivity is now ', overallInputActivity, avgActivity, sumActivity);
+            // Do we loop through each 'inputTimes' and calculate their mode?
         }
 
-        if (avgActivity > 0.5) {
-            console.log('synths!')
-            sendSynth('space_scanner');
+        if (avgActivity > 0.5 && !synthPlaying) {
+            playNextSynth();
         }
-        if (avgActivity > 0.8) {
+        if (avgActivity > 0.7 && !ambientPlaying) {
             const choice = Math.ceil(Math.random() * AMBIENT_SAMPLES);
-            sendAmbient(choice);
+            sendAmbient(Math.trunc(choice));
+            ambientPlaying = true;
+        }
+        if (triggerCount === 2 && !drumsPlaying) {
+            sendDrums(1); // Allow for 'random' drums?
+            drumsPlaying = true;
         }
         // Also check which input, e.g. 1 + 2 + 3 affects mode!
         // If mode is different
