@@ -222,19 +222,19 @@ const run = (sampleFiles) => {
             console.log('playing long sample ', sample[0]);
             sendSample(sample[0], 'long');
             idleSamplePlaying = true;
-            const rand = 5;//Math.random() * 5;
+            const rand = Math.random() * 6;
             if (people[currentPerson] === 'DOM' && !steveReichPlaying && rand >= 4.0) {
                 sendSteveReich();
             }
-            // reset when we run out.
-            if (!currentLongSamples.length) {
-                currentPerson++;
-                if (currentPerson === people.length) {
-                    currentPerson = 0;
-                }
-                personLongSamples = audioSamples.getLongSamplesForPerson(people[currentPerson]);
-		currentLongSamples = personLongSamples.slice(0);
+        }
+        // reset when we run out.
+        if (!currentLongSamples.length) {
+            currentPerson++;
+            if (currentPerson === people.length) {
+                currentPerson = 0;
             }
+            personLongSamples = audioSamples.getLongSamplesForPerson(people[currentPerson]);
+            currentLongSamples = personLongSamples.slice(0);
         }
     };
 
