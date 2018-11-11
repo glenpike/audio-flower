@@ -45,13 +45,13 @@ const sendSynth = (name) => {
     oscServer.sendOSCMessage(msg);
 };
 
-const sendSteveReich = (name) => {
+const sendSteveReich = () => {
     const msg = {
         address: '/trigger/steve-reich',
         args: [],
     };
 
-    console.log(msg.address, name);
+    console.log(msg.address);
     oscServer.sendOSCMessage(msg);
 };
 
@@ -160,7 +160,7 @@ const MODE_FX = 'fx';
 const run = (sampleFiles) => {
     console.log('running');
 
-
+    let serverReady = false;
     let lastTime = new Date().getTime();
     const startTime = lastTime;
     let currTime;
@@ -180,7 +180,6 @@ const run = (sampleFiles) => {
         return checkIfInputTriggered(input)
     });
 
-
     let currentMode = MODE_IDLE;
     let lastMode = currentMode;
     let timeInMode = 0;
@@ -188,18 +187,18 @@ const run = (sampleFiles) => {
     // current key?
     const allHitzSamples = audioSamples.getSampleFilesForType('HITZ');
     const allQuoteSamples = audioSamples.getSampleFilesForType('QUOTES');
-    
+
     const people = Object.keys(sampleFiles);
     let currentPerson = people.indexOf('DOM');
     console.log('current person ', people[currentPerson]);
     let personLongSamples = audioSamples.getLongSamplesForPerson(people[currentPerson]);
     let currentLongSamples = personLongSamples.slice(0);
     let currentQuoteSamples = allQuoteSamples.slice(0);
-    
+
     const synths = ['space_scanner', 'squelch', 'trance',
             'dark_ambient', 'slo_bells', 'tri_me', 'strings'];
     let currentSynths = synths.slice(0);
-    
+
     const setMode = (mode) => {
         console.log(`changing mode to ${mode}`);
         currentMode = mode;
@@ -211,8 +210,12 @@ const run = (sampleFiles) => {
         const sample = allHitzSamples[choice]
         sendSample(sample);
     };
-    
+
     const playNextLongSample = () => {
+	// Don't play until server is ready, because idle kicks in
+	// before sonic-pi starts and then breaks the idleSamplePlaying
+	// 'blocker'
+	if (!serverReady) return;
         const choice = Math.floor(Math.random() * currentLongSamples.length);
         const sample = currentLongSamples.splice(choice, 1);
         if (sample && sample[0]) {
@@ -229,7 +232,8 @@ const run = (sampleFiles) => {
                 if (currentPerson === people.length) {
                     currentPerson = 0;
                 }
-                currentLongSamples = personLongSamples.slice(0);
+                personLongSamples = audioSamples.getLongSamplesForPerson(people[currentPerson]);
+		currentLongSamples = personLongSamples.slice(0);
             }
         }
     };
@@ -248,7 +252,7 @@ const run = (sampleFiles) => {
             }
         }
     };
-    
+
     const playNextSynth = () => {
         const choice = Math.floor(Math.random() * currentSynths.length);
         const synth = currentSynths.splice(choice, 1);
@@ -260,6 +264,10 @@ const run = (sampleFiles) => {
     };
 
     const oscMessageHandler = (msg) => {
+	if(!serverReady) {
+	    console.log('sonic-pi server is ready');
+	    serverReady = true;
+	}
         const { address } = msg;
         switch (address) {
             case '/sample-finished/hitz':
@@ -282,14 +290,14 @@ const run = (sampleFiles) => {
             case '/steve-reich-finished':
                 setTimeout(() => { steveReichPlaying = false }, TIME_BETWEEN_LONG_SAMPLES);
                 break;
-            default:
+	    default:
                 console.log('oscMessageHandler ', msg);
                 break;
         }
     };
     oscServer.addOSCListener(oscMessageHandler);
     // sendDrums(1);
-    
+
     setInterval(async () => {
         currTime = new Date().getTime();
         // Read inputs - for changes

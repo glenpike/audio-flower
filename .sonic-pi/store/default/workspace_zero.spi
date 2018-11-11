@@ -212,3 +212,7 @@ with_fx :reverb, room: 1 do
     osc "/steve-reich-finished"
   end
 end
+
+sample :loop_amen_full, sustain_level: 0.5
+sleep sample_duration(:loop_amen_full)
+osc "/sonic-pi-ready"

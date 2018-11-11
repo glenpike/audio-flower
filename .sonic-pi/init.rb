@@ -14,11 +14,25 @@ end
 
 load_samples "ambi_"
 define :ambient do |index|
-  sample "ambi_", index, rate: 0.5, attack: (10), amp:0.75
-  sleep (sample_duration "ambi_", index)
+  #index doesn't work!
+  i = tick
+  sample "ambi_", i, rate: 0.5, attack: 3.0, amp:0.75
+  sleep (sample_duration("ambi_", i))
 end
 
 ##| Melodic sounds
+# Steve Reich's Piano Phase
+piano_phase_notes = (ring :E4, :Fs4, :B4, :Cs5, :D5, :Fs4, :E4, :Cs5, :B4, :Fs4, :D5, :Cs5)
+
+define :piano_phase do |speed|
+  use_bpm 60
+  use_synth :piano
+  192.times do
+    play piano_phase_notes.tick, sustain_level: 0.9, release: 1, amp: 0.2
+    sleep speed
+  end
+end
+
 define :slo_bells do
   use_bpm 60
   with_fx :hpf, cutoff: 70 do
@@ -59,7 +73,8 @@ end
 
 ##| Sweepy sounds
 define :sweep do |sweep|
-  use_bpm 60
+  #use_bpm 60
+  use_sample_bpm :loop_amen
   c = 30
   dir = true
   if sweep == 'trance'
@@ -117,6 +132,36 @@ define :dark_ambient do
   sleep 16
 end
 
+define :breakdown do
+  use_sample_bpm :loop_amen
+  16.times do
+    puts 'loop'
+    n = 8
+    s = rand_i n
+    sample :loop_amen, slice: s, num_slices: n, sustain_level: 0.5
+    sleep 1.0/n
+  end
+end
+
+define :amen do
+  use_sample_bpm :loop_amen
+  4.times do
+    sample :loop_amen_full, sustain_level: 0.5
+    sleep sample_duration(:loop_amen_full)
+  end
+end
+
+live_loop :beat_slicer do
+  sync "/osc/trigger/drums"
+  if one_in(4)
+    breakdown
+  else
+    amen
+  end
+  osc "/drums-finished"
+end
+
+
 with_fx :echo, phase: 0.25, decay: 2, mix: 0.2 do
   live_loop :positive_samples do
     use_real_time
@@ -127,16 +172,17 @@ with_fx :echo, phase: 0.25, decay: 2, mix: 0.2 do
   live_loop :ambient_loop do
     index = sync "/osc/trigger/ambient"
     ambient index
+    osc "/ambient-finished"
   end
 end
 
 with_fx :reverb, room: 1 do
   live_loop :quote_samples do
     use_real_time
-    file = sync "/osc/trigger/sample/quotes"
+    file = sync "/osc/trigger/sample/quote"
     sample file[0]
     sleep sample_duration(file[0])
-    osc "/sample-finished/quotes"
+    osc "/sample-finished/quote"
   end
   live_loop :long_samples do
     use_real_time
@@ -152,6 +198,21 @@ with_fx :reverb, room: 1 do
     sweep 'trance' if synth_bg[0] == 'trance'
     dark_ambient if synth_bg[0] == "dark_ambient"
     slo_bells if synth_bg[0] == 'slo_bells'
+    strings if synth_bg[0] == 'strings'
+    tri_me if synth_bg[0] == 'tri_me'
     osc "/synth-finished"
   end
+  live_loop :slow_piano do
+    sync "/osc/trigger/steve-reich"
+    piano_phase 0.3
+  end
+  live_loop :faster_piano do
+    sync "/osc/trigger/steve-reich"
+    piano_phase 0.295
+    osc "/steve-reich-finished"
+  end
 end
+
+sample :loop_amen_full, sustain_level: 0.5
+sleep sample_duration(:loop_amen_full)
+osc "/sonic-pi-ready"
